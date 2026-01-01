@@ -188,18 +188,9 @@ const deleteImage = async (id) => {
 const formatDate = (dateString) => {
   if (!dateString) return 'Invalid Date'
   try {
-    // 处理LocalDateTime格式 (可能包含或不包含时区信息)
-    let date
-    if (typeof dateString === 'string') {
-      // 如果字符串不包含时区信息，添加Z表示UTC
-      if (!dateString.includes('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
-        date = new Date(dateString + 'Z')
-      } else {
-        date = new Date(dateString)
-      }
-    } else {
-      date = new Date(dateString)
-    }
+    // Spring Boot默认序列化LocalDateTime为ISO-8601格式 (如: 2026-01-01T18:39:42)
+    // 直接解析即可
+    const date = new Date(dateString)
     
     if (isNaN(date.getTime())) {
       return 'Invalid Date'
