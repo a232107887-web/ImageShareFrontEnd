@@ -67,7 +67,9 @@ const editingId = ref(null)
 const editingName = ref('')
 
 const uploadUrl = computed(() => {
-  return '/api/images/upload'
+  return import.meta.env.PROD 
+    ? 'https://imagesharebackend-a9bahdacgugcg5bd.francecentral-01.azurewebsites.net/api/images/upload'
+    : '/api/images/upload'
 })
 
 const uploadHeaders = computed(() => {
@@ -80,8 +82,15 @@ const fetchImages = async () => {
   loading.value = true
   try {
     const response = await api.get('/images/my')
-    images.value = response.data
+    // 确保返回的是数组，并且过滤掉无效数据
+    if (Array.isArray(response.data)) {
+      images.value = response.data
+    } else {
+      images.value = []
+    }
   } catch (error) {
+    console.error('Failed to load images:', error)
+    images.value = []
     ElMessage.error('Failed to load images')
   } finally {
     loading.value = false
@@ -89,7 +98,10 @@ const fetchImages = async () => {
 }
 
 const getImageUrl = (imageId) => {
-  return `/api/images/${imageId}/download`
+  const baseURL = import.meta.env.PROD 
+    ? 'https://imagesharebackend-a9bahdacgugcg5bd.francecentral-01.azurewebsites.net/api'
+    : '/api'
+  return `${baseURL}/images/${imageId}/download`
 }
 
 const beforeUpload = (file) => {
@@ -174,8 +186,34 @@ const deleteImage = async (id) => {
 }
 
 const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  return date.toLocaleString('en-US')
+  if (!dateString) return 'Invalid Date'
+  try {
+    // 处理LocalDateTime格式 (可能包含或不包含时区信息)
+    let date
+    if (typeof dateString === 'string') {
+      // 如果字符串不包含时区信息，添加Z表示UTC
+      if (!dateString.includes('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
+        date = new Date(dateString + 'Z')
+      } else {
+        date = new Date(dateString)
+      }
+    } else {
+      date = new Date(dateString)
+    }
+    
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date'
+    }
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    return 'Invalid Date'
+  }
 }
 
 const handleImageError = (event) => {

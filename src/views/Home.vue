@@ -4,14 +4,14 @@
     <div v-if="loading" class="loading">
       <el-loading :loading="loading" />
     </div>
-    <div v-else class="image-grid">
-      <div v-for="image in images" :key="image.id" class="image-card">
+    <div v-else-if="validImages.length > 0" class="image-grid">
+      <div v-for="image in validImages" :key="image.id" class="image-card">
         <div class="image-wrapper">
-          <img :src="getImageUrl(image.id)" :alt="image.name" @error="handleImageError" />
+          <img :src="getImageUrl(image.id)" :alt="image.name || 'Image'" @error="() => handleImageError(image.id)" />
         </div>
         <div class="image-info">
-          <p class="image-name">{{ image.name }}</p>
-          <p class="image-author">Uploaded by: {{ image.authorName }}</p>
+          <p class="image-name">{{ image.name || 'Unnamed Image' }}</p>
+          <p class="image-author">Uploaded by: {{ image.authorName || 'Unknown' }}</p>
           <p class="image-date">{{ formatDate(image.uploadDate) }}</p>
         </div>
         <div class="image-actions">
@@ -21,26 +21,39 @@
         </div>
       </div>
     </div>
-    <div v-if="images.length === 0 && !loading" class="empty">
-      <el-empty description="No images available" />
+    <div v-else class="empty">
+      <el-empty description="No images available. Upload your first image in the Profile page!" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import api from '../api'
 import { ElMessage } from 'element-plus'
 
 const images = ref([])
 const loading = ref(false)
+const failedImages = ref(new Set()) // 记录加载失败的图片ID
+
+// 只显示有效的图片（未加载失败的）
+const validImages = computed(() => {
+  return images.value.filter(image => !failedImages.value.has(image.id))
+})
 
 const fetchImages = async () => {
   loading.value = true
   try {
     const response = await api.get('/images')
-    images.value = response.data
+    // 确保返回的是数组，并且过滤掉无效数据
+    if (Array.isArray(response.data)) {
+      images.value = response.data
+    } else {
+      images.value = []
+    }
   } catch (error) {
+    console.error('Failed to load images:', error)
+    images.value = []
     ElMessage.error('Failed to load images')
   } finally {
     loading.value = false
@@ -48,7 +61,10 @@ const fetchImages = async () => {
 }
 
 const getImageUrl = (imageId) => {
-  return `/api/images/${imageId}/download`
+  const baseURL = import.meta.env.PROD 
+    ? 'https://imagesharebackend-a9bahdacgugcg5bd.francecentral-01.azurewebsites.net/api'
+    : '/api'
+  return `${baseURL}/images/${imageId}/download`
 }
 
 const downloadImage = async (imageId, imageName) => {
@@ -70,12 +86,41 @@ const downloadImage = async (imageId, imageName) => {
 }
 
 const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  return date.toLocaleString('en-US')
+  if (!dateString) return 'Invalid Date'
+  try {
+    // 处理LocalDateTime格式 (可能包含或不包含时区信息)
+    let date
+    if (typeof dateString === 'string') {
+      // 如果字符串不包含时区信息，添加Z表示UTC
+      if (!dateString.includes('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
+        date = new Date(dateString + 'Z')
+      } else {
+        date = new Date(dateString)
+      }
+    } else {
+      date = new Date(dateString)
+    }
+    
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date'
+    }
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    return 'Invalid Date'
+  }
 }
 
-const handleImageError = (event) => {
-  event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage load failed%3C/text%3E%3C/svg%3E'
+const handleImageError = (imageId) => {
+  // 标记该图片加载失败，从列表中移除
+  if (imageId) {
+    failedImages.value.add(imageId)
+  }
 }
 
 onMounted(() => {
