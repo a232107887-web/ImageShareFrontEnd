@@ -7,12 +7,14 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true
+        target: 'https://imagesharebackend-a9bahdacgugcg5bd.francecentral-01.azurewebsites.net',
+        changeOrigin: true,
+        secure: true
       }
     }
   }
 })
+
 
 
 

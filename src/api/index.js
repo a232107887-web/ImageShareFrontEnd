@@ -1,7 +1,9 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.PROD 
+    ? 'https://imagesharebackend-a9bahdacgugcg5bd.francecentral-01.azurewebsites.net/api'
+    : '/api',
   headers: {
     'Content-Type': 'application/json'
   }
