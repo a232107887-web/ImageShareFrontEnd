@@ -62,7 +62,7 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'pictureShareFront'
+          app-name: 'imageShareFrontend'
           slot-name: 'Production'
           # 关键修改: 部署我们构建好的 dist 目录内容
           package: .
